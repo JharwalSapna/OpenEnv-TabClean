@@ -22,7 +22,7 @@ def main() -> None:
     """
     Local scoring helper for smoke tests.
 
-    This isn't the hackathon evaluator; it's just a quick way to confirm:
+    This isn't the official evaluator; it's just a quick way to confirm:
     - tasks enumerate
     - scores land in [0, 1]
     - repeated runs are stable

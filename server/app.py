@@ -89,8 +89,8 @@ _UI_HTML = """<!doctype html>
   <body>
     <h1>OpenEnv TabClean</h1>
     <p class="muted">
-      An <b>OpenEnv environment</b> for tabular data cleaning (not reinforcement learning).
-      Start with <code>reset</code>, apply a safe transform with <code>step</code>, and watch the table + score update.
+      An <b>OpenEnv environment</b> for tabular data cleaning and schema repair.
+      Start with <code>reset</code>, apply safe transforms with <code>step</code>, and watch the table + score update in real time.
     </p>
     <div class="steps" style="margin: 0 0 14px;">
       <span class="step"><b>1</b> Reset (auto)</span>
