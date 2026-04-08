@@ -291,7 +291,7 @@ _UI_HTML = """<!doctype html>
         show("Calling /step ...");
         let parsed;
         try { parsed = JSON.parse(action.value); } catch (e) { err.textContent = "Invalid JSON: " + e; return; }
-        const resp = await postJson("/step", parsed);
+        const resp = await postJson("/step", { action: parsed, timeout_s: 30 });
         show(resp);
         updateKpis(resp);
       });
