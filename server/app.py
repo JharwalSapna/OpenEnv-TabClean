@@ -43,7 +43,7 @@ _UI_HTML = """<!doctype html>
       body { font: 14px/1.45 var(--mono); margin: 26px; background: var(--bg); color: var(--text); }
       h1 { font-size: 18px; margin: 0 0 8px; }
       .muted { color: var(--muted); margin: 0 0 18px; max-width: 980px; }
-      .grid { display: grid; grid-template-columns: 360px 1fr; gap: 14px; align-items: start; }
+      .grid { display: grid; grid-template-columns: 420px 1fr; gap: 14px; align-items: start; }
       @media (max-width: 980px){ .grid { grid-template-columns: 1fr; } }
       .card { border: 1px solid var(--border); border-radius: 14px; background: var(--panel2); padding: 12px; }
       .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 10px 0; }
@@ -77,23 +77,25 @@ _UI_HTML = """<!doctype html>
       .k .name { color: var(--muted); font-size: 12px; }
       .k .val { font-size: 18px; margin-top: 2px; }
       .err { color: var(--danger); white-space: pre-wrap; }
+      .steps { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+      .step { border: 1px solid var(--border); background: var(--panel); border-radius: 999px; padding: 6px 10px; color: var(--muted); }
+      .step b { color: var(--text); }
     </style>
   </head>
   <body>
     <h1>OpenEnv TabClean</h1>
     <p class="muted">
-      Interactive walkthrough for the TabClean environment.
-      Start an episode (<span class="mono"><code>reset</code></span>), apply safe transformations (<span class="mono"><code>step</code></span>), and inspect progress.
-      API docs: <a href="/docs">/docs</a>.
+      Clean a messy table into a target schema using safe actions. This page will <b>auto-start</b> an episode for the selected task.
     </p>
+    <div class="steps" style="margin: 0 0 14px;">
+      <span class="step"><b>1</b> Reset (auto)</span>
+      <span class="step"><b>2</b> Pick an action</span>
+      <span class="step"><b>3</b> Step → watch table + score change</span>
+      <span class="step">API docs: <a href="/docs">/docs</a></span>
+    </div>
 
     <div class="grid">
       <div class="card">
-        <div class="row tight">
-          <span class="pill">Controls</span>
-          <span class="pill">Recommended actions</span>
-        </div>
-
         <div class="row">
           <label>Task</label>
           <select id="task">
@@ -109,47 +111,40 @@ _UI_HTML = """<!doctype html>
         <div class="row">
           <button class="primary" id="resetBtn">Reset</button>
           <button id="stateBtn">State</button>
-          <button class="danger" id="clearBtn" title="Clear UI output (does not reset env)">Clear UI</button>
-        </div>
-
-        <div class="row">
-          <label>Recommended actions</label>
-        </div>
-        <div class="row">
-          <button class="secondary" data-act="easy_rename">easy: rename</button>
-          <button class="secondary" data-act="easy_cast_user">easy: cast user</button>
-          <button class="secondary" data-act="easy_cast_age">easy: cast age</button>
-          <button class="secondary" data-act="easy_fill_age">easy: fill age</button>
-          <button class="secondary" data-act="easy_norm_country">easy: normalize country</button>
-        </div>
-        <div class="row">
-          <button class="secondary" data-act="med_norm_email">medium: norm email</button>
-          <button class="secondary" data-act="med_norm_city">medium: norm city</button>
-          <button class="secondary" data-act="med_cast_sub">medium: cast subscribed</button>
-          <button class="secondary" data-act="med_fill_sub">medium: fill subscribed</button>
-          <button class="secondary" data-act="med_dedupe">medium: dedupe</button>
-        </div>
-        <div class="row">
-          <button class="secondary" data-act="hard_cast_id">hard: cast row_id</button>
-          <button class="secondary" data-act="hard_rename_signup">hard: rename signup</button>
-          <button class="secondary" data-act="hard_cast_date">hard: cast date</button>
-          <button class="secondary" data-act="hard_split">hard: split name</button>
-          <button class="secondary" data-act="hard_norm_names">hard: norm names</button>
-          <button class="secondary" data-act="hard_norm_country">hard: norm country</button>
-          <button class="secondary" data-act="hard_filter_country">hard: filter country</button>
         </div>
 
         <div class="row" style="margin-top:14px;">
-          <label>Action JSON</label>
+          <label>Action</label>
+          <select id="actionPreset" style="min-width: 260px;">
+            <option value="noop">noop (do nothing)</option>
+            <option value="rename_userId">rename: userId → user_id</option>
+            <option value="cast_user_id_int">cast: user_id → int</option>
+            <option value="cast_age_int">cast: age → int</option>
+            <option value="fill_age_0">fill_missing: age = 0</option>
+            <option value="norm_country_iso2">normalize: country → ISO2</option>
+            <option value="norm_email_lower">normalize: email → trim_lower</option>
+            <option value="norm_city_upper">normalize: city → trim_upper</option>
+            <option value="cast_subscribed_bool">cast: subscribed → bool</option>
+            <option value="fill_subscribed_false">fill_missing: subscribed = false</option>
+            <option value="dedupe_email">dedupe by email</option>
+            <option value="hard_cast_row_id_int">cast: row_id → int</option>
+            <option value="hard_rename_signup">rename: signup → signup_date</option>
+            <option value="hard_cast_signup_date">cast: signup_date → date_ymd</option>
+            <option value="hard_split_full_name">split: full_name → first/last</option>
+            <option value="hard_norm_first_name">normalize: first_name → trim_upper</option>
+            <option value="hard_norm_last_name">normalize: last_name → trim_upper</option>
+            <option value="hard_filter_country">filter: country in [IN, US]</option>
+          </select>
         </div>
-        <textarea id="action">{ "op": "noop", "args": {} }</textarea>
         <div class="row">
-          <button class="primary" id="stepBtn">Step</button>
+          <button class="primary" id="stepBtn">Run Step</button>
+          <button class="danger" id="clearBtn" title="Clear output panel">Clear</button>
         </div>
 
-        <div class="row tight">
-          <span class="muted">Select an action, then press Step. You can also edit the JSON directly.</span>
-        </div>
+        <details style="margin-top: 10px;">
+          <summary class="muted">Advanced: edit action JSON</summary>
+          <textarea id="action">{ "op": "noop", "args": {} }</textarea>
+        </details>
       </div>
 
       <div class="card">
@@ -178,9 +173,9 @@ _UI_HTML = """<!doctype html>
 
         <div class="row tight" style="margin-top:12px;">
           <span class="pill">Response</span>
-          <span class="pill">Raw JSON (audit)</span>
+          <span class="pill">Raw JSON</span>
         </div>
-        <pre id="out">Ready.</pre>
+        <pre id="out">Loading…</pre>
         <div class="err" id="err"></div>
       </div>
     </div>
@@ -191,6 +186,7 @@ _UI_HTML = """<!doctype html>
       const task = document.getElementById("task");
       const seed = document.getElementById("seed");
       const action = document.getElementById("action");
+      const actionPreset = document.getElementById("actionPreset");
       const episodeId = document.getElementById("episodeId");
       const stepInfo = document.getElementById("stepInfo");
       const budgetInfo = document.getElementById("budgetInfo");
@@ -199,27 +195,28 @@ _UI_HTML = """<!doctype html>
       const previewHead = document.getElementById("previewHead");
       const previewBody = document.getElementById("previewBody");
 
-      const ACTIONS = {
-        easy_rename: { op: "rename_column", args: { from: "userId", to: "user_id" } },
-        easy_cast_user: { op: "cast", args: { column: "user_id", type: "int" } },
-        easy_cast_age: { op: "cast", args: { column: "age", type: "int" } },
-        easy_fill_age: { op: "fill_missing", args: { column: "age", strategy: "constant", value: 0 } },
-        easy_norm_country: { op: "normalize_text", args: { column: "country", mode: "country_iso2" } },
-
-        med_norm_email: { op: "normalize_text", args: { column: "email", mode: "trim_lower" } },
-        med_norm_city: { op: "normalize_text", args: { column: "city", mode: "trim_upper" } },
-        med_cast_sub: { op: "cast", args: { column: "subscribed", type: "bool" } },
-        med_fill_sub: { op: "fill_missing", args: { column: "subscribed", strategy: "constant", value: false } },
-        med_dedupe: { op: "dedupe", args: { keys: ["email"] } },
-
-        hard_cast_id: { op: "cast", args: { column: "row_id", type: "int" } },
-        hard_rename_signup: { op: "rename_column", args: { from: "signup", to: "signup_date" } },
-        hard_cast_date: { op: "cast", args: { column: "signup_date", type: "date_ymd" } },
-        hard_split: { op: "split_column", args: { column: "full_name", sep: " ", into: ["first_name", "last_name"], take: "first_last" } },
-        hard_norm_names: { op: "noop", args: {} }, // set dynamically (see handler)
-        hard_norm_country: { op: "normalize_text", args: { column: "country", mode: "country_iso2" } },
-        hard_filter_country: { op: "filter_rows", args: { column: "country", op: "in", value: ["IN", "US"] } },
-      };
+      function presetToAction(key) {
+        switch (key) {
+          case "rename_userId": return { op: "rename_column", args: { from: "userId", to: "user_id" } };
+          case "cast_user_id_int": return { op: "cast", args: { column: "user_id", type: "int" } };
+          case "cast_age_int": return { op: "cast", args: { column: "age", type: "int" } };
+          case "fill_age_0": return { op: "fill_missing", args: { column: "age", strategy: "constant", value: 0 } };
+          case "norm_country_iso2": return { op: "normalize_text", args: { column: "country", mode: "country_iso2" } };
+          case "norm_email_lower": return { op: "normalize_text", args: { column: "email", mode: "trim_lower" } };
+          case "norm_city_upper": return { op: "normalize_text", args: { column: "city", mode: "trim_upper" } };
+          case "cast_subscribed_bool": return { op: "cast", args: { column: "subscribed", type: "bool" } };
+          case "fill_subscribed_false": return { op: "fill_missing", args: { column: "subscribed", strategy: "constant", value: false } };
+          case "dedupe_email": return { op: "dedupe", args: { keys: ["email"] } };
+          case "hard_cast_row_id_int": return { op: "cast", args: { column: "row_id", type: "int" } };
+          case "hard_rename_signup": return { op: "rename_column", args: { from: "signup", to: "signup_date" } };
+          case "hard_cast_signup_date": return { op: "cast", args: { column: "signup_date", type: "date_ymd" } };
+          case "hard_split_full_name": return { op: "split_column", args: { column: "full_name", sep: " ", into: ["first_name", "last_name"], take: "first_last" } };
+          case "hard_norm_first_name": return { op: "normalize_text", args: { column: "first_name", mode: "trim_upper" } };
+          case "hard_norm_last_name": return { op: "normalize_text", args: { column: "last_name", mode: "trim_upper" } };
+          case "hard_filter_country": return { op: "filter_rows", args: { column: "country", op: "in", value: ["IN", "US"] } };
+          default: return { op: "noop", args: {} };
+        }
+      }
 
       function show(obj) {
         err.textContent = "";
@@ -318,8 +315,12 @@ _UI_HTML = """<!doctype html>
 
       document.getElementById("stepBtn").addEventListener("click", async () => {
         show("Calling step (WebSocket) ...");
-        let parsed;
-        try { parsed = JSON.parse(action.value); } catch (e) { err.textContent = "Invalid JSON: " + e; return; }
+        let parsed = presetToAction(actionPreset.value);
+        // If advanced JSON editor is open and modified, prefer it.
+        try {
+          const adv = JSON.parse(action.value);
+          if (adv && typeof adv === "object" && adv.op) parsed = adv;
+        } catch {}
         const resp = await sendAndReceive({ type: "step", data: parsed });
         show(resp);
         updateKpis(resp && resp.data);
@@ -337,17 +338,21 @@ _UI_HTML = """<!doctype html>
         err.textContent = "";
       });
 
-      document.querySelectorAll("button[data-act]").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          const key = btn.getAttribute("data-act");
-          if (key === "hard_norm_names") {
-            // Guided 2-step: normalize first_name, then last_name.
-            setAction({ op: "normalize_text", args: { column: "first_name", mode: "trim_upper" } });
-            err.textContent = "Next: normalize last_name (trim_upper).";
-            return;
-          }
-          setAction(ACTIONS[key] || { op: "noop", args: {} });
-        });
+      actionPreset.addEventListener("change", () => {
+        setAction(presetToAction(actionPreset.value));
+      });
+
+      // Auto-reset on load, and when the task changes.
+      async function autoReset() {
+        show("Starting episode…");
+        const resp = await sendAndReceive({ type: "reset", data: { task: task.value, seed: Number(seed.value || 0) } });
+        show(resp);
+        updateKpis(resp && resp.data);
+      }
+      task.addEventListener("change", autoReset);
+      window.addEventListener("load", () => {
+        setAction(presetToAction(actionPreset.value));
+        autoReset();
       });
     </script>
   </body>
