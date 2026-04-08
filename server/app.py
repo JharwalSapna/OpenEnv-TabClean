@@ -298,14 +298,16 @@ _UI_HTML = """<!doctype html>
       }
 
       function updateKpis(resp) {
-        const obs = resp && (resp.observation || resp);
+        const payload = resp || {};
+        const obs = payload && (payload.observation || payload);
         if (!obs) return;
         episodeId.textContent = "episode: " + (obs.episode_id ? String(obs.episode_id) : "-");
         if (typeof obs.step_budget_remaining !== "undefined") budgetInfo.textContent = "budget: " + obs.step_budget_remaining;
         if (obs.task_name) stepInfo.textContent = "task: " + obs.task_name;
         const total = obs.validation_report && obs.validation_report.score_components && obs.validation_report.score_components.total;
         scoreVal.textContent = (typeof total === "number") ? total.toFixed(3) : "-";
-        rewardVal.textContent = (typeof obs.reward === "number") ? obs.reward.toFixed(3) : "-";
+        const r = (typeof payload.reward === "number") ? payload.reward : obs.reward;
+        rewardVal.textContent = (typeof r === "number") ? r.toFixed(3) : "-";
         renderPreview(obs);
       }
 
