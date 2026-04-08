@@ -233,6 +233,7 @@ _UI_HTML = """<!doctype html>
 
       let ws;
       let pending = [];
+      let hasEpisode = false;
 
       function ensureWs() {
         if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
@@ -283,6 +284,13 @@ _UI_HTML = """<!doctype html>
         return resp;
       }
 
+      function isResetRequiredError(resp) {
+        if (!resp || resp.type !== "error") return false;
+        const d = resp.data || {};
+        const msg = (d.message || "").toString().toLowerCase();
+        return msg.includes("reset() must be called first");
+      }
+
       function setAction(a) {
         action.value = JSON.stringify(a, null, 2);
       }
@@ -301,6 +309,7 @@ _UI_HTML = """<!doctype html>
         const payload = resp || {};
         const obs = payload && (payload.observation || payload);
         if (!obs) return;
+        if (obs.episode_id) hasEpisode = true;
         episodeId.textContent = "episode: " + (obs.episode_id ? String(obs.episode_id) : "-");
         if (typeof obs.step_budget_remaining !== "undefined") budgetInfo.textContent = "budget: " + obs.step_budget_remaining;
         if (obs.task_name) stepInfo.textContent = "task: " + obs.task_name;
@@ -326,14 +335,28 @@ _UI_HTML = """<!doctype html>
           const adv = JSON.parse(action.value);
           if (adv && typeof adv === "object" && adv.op) parsed = adv;
         } catch {}
-        const resp = await sendAndReceive({ type: "step", data: parsed });
+        if (!hasEpisode) {
+          await autoReset();
+        }
+        let resp = await sendAndReceive({ type: "step", data: parsed });
+        if (isResetRequiredError(resp)) {
+          await autoReset();
+          resp = await sendAndReceive({ type: "step", data: parsed });
+        }
         show(resp);
-        updateKpis(resp && resp.data);
+        if (resp && resp.type === "observation") updateKpis(resp && resp.data);
       });
 
       document.getElementById("stateBtn").addEventListener("click", async () => {
         show("Calling state (WebSocket) ...");
-        const resp = await sendAndReceive({ type: "state" });
+        if (!hasEpisode) {
+          await autoReset();
+        }
+        let resp = await sendAndReceive({ type: "state" });
+        if (isResetRequiredError(resp)) {
+          await autoReset();
+          resp = await sendAndReceive({ type: "state" });
+        }
         show(resp);
         // state payload differs from observation; still useful to show
       });
@@ -350,9 +373,10 @@ _UI_HTML = """<!doctype html>
       // Auto-reset on load, and when the task changes.
       async function autoReset() {
         show("Starting episode…");
+        hasEpisode = false;
         const resp = await sendAndReceive({ type: "reset", data: { task: task.value, seed: Number(seed.value || 0) } });
         show(resp);
-        updateKpis(resp && resp.data);
+        if (resp && resp.type === "observation") updateKpis(resp && resp.data);
       }
       task.addEventListener("change", autoReset);
       window.addEventListener("load", () => {
