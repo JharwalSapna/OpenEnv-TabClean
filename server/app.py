@@ -8,7 +8,11 @@ from fastapi.responses import HTMLResponse
 from models import TabCleanAction, TabCleanObservation
 from server.environment import TabCleanEnvironment
 
-app = create_fastapi_app(TabCleanEnvironment, TabCleanAction, TabCleanObservation)
+# Allow multiple concurrent WebSocket sessions in the public HF Space UI.
+_MAX_CONCURRENT_ENVS = int(os.getenv("MAX_CONCURRENT_ENVS", "16"))
+app = create_fastapi_app(
+    TabCleanEnvironment, TabCleanAction, TabCleanObservation, max_concurrent_envs=_MAX_CONCURRENT_ENVS
+)
 
 _UI_HTML = """<!doctype html>
 <html lang="en">
