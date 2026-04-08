@@ -155,14 +155,14 @@ _UI_HTML = """<!doctype html>
       <div class="card">
         <div class="row tight">
           <span class="pill">Episode</span>
-          <span class="pill mono" id="episodeId">episode: —</span>
-          <span class="pill mono" id="stepInfo">step: —</span>
-          <span class="pill mono" id="budgetInfo">budget: —</span>
+          <span class="pill mono" id="episodeId">episode: -</span>
+          <span class="pill mono" id="stepInfo">step: -</span>
+          <span class="pill mono" id="budgetInfo">budget: -</span>
         </div>
 
         <div class="kpi" style="margin: 10px 0;">
-          <div class="k"><div class="name">Score</div><div class="val" id="scoreVal">—</div></div>
-          <div class="k"><div class="name">Reward (Δ)</div><div class="val" id="rewardVal">—</div></div>
+          <div class="k"><div class="name">Score</div><div class="val" id="scoreVal">-</div></div>
+          <div class="k"><div class="name">Reward (Δ)</div><div class="val" id="rewardVal">-</div></div>
         </div>
 
         <div class="row tight">
