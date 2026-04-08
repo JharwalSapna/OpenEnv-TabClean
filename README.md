@@ -2,6 +2,26 @@
 
 TabClean is a **real-world** OpenEnv environment that evaluates an agent’s ability to **clean messy tabular data into a target schema** using a safe, auditable transformation DSL.
 
+## Quickstart (local)
+
+```bash
+git clone https://github.com/JharwalSapna/OpenEnv-TabClean.git
+cd OpenEnv-TabClean
+
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install -r requirements.txt
+
+uvicorn server.app:app --host 0.0.0.0 --port 8000 --reload
+```
+
+In another terminal:
+
+```bash
+. .venv/bin/activate
+python3 demo.py
+```
+
 ## Why this is useful
 
 Data cleaning and schema repair is a common real-world bottleneck in analytics/ETL. TabClean provides deterministic tasks + graders for agent evaluation.
@@ -161,6 +181,20 @@ Then point the client at `TAB_CLEAN_BASE_URL=http://localhost:8001`.
 
 ```bash
 openenv validate
+```
+
+## Troubleshooting
+
+### `ModuleNotFoundError: No module named 'openenv'`
+
+This means you're running `python3 demo.py` with a Python interpreter that **doesn't have dependencies installed**.
+
+Fix:
+
+```bash
+. .venv/bin/activate
+python -m pip install -r requirements.txt
+python3 demo.py
 ```
 
 ## What you need to submit (per FAQ)
