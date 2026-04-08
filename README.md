@@ -16,6 +16,12 @@ TabClean is an OpenEnv environment for evaluating an agent’s ability to **clea
 - UI: `https://sapana1234-openenv-tabclean.hf.space/`
 - API docs: `https://sapana1234-openenv-tabclean.hf.space/docs`
 
+## Screenshots
+
+![OpenEnv TabClean UI (controls)](docs/images/ui-old.png)
+
+![OpenEnv TabClean (table preview)](docs/images/readme-mermaid-fix-before.png)
+
 ## How it works (visual)
 
 ```mermaid
