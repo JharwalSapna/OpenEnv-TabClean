@@ -1,8 +1,8 @@
 ---
 title: OpenEnv TabClean
 emoji: "\U0001F9F9"
-colorFrom: slate
-colorTo: emerald
+colorFrom: gray
+colorTo: green
 sdk: docker
 pinned: false
 ---
