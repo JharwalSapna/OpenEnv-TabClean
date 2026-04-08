@@ -227,31 +227,61 @@ _UI_HTML = """<!doctype html>
         out.textContent = typeof obj === "string" ? obj : JSON.stringify(obj, null, 2);
       }
 
-      async function postJson(path, body) {
-        const r = await fetch(path, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body ?? {}),
-        });
-        const t = await r.text();
-        let parsed;
-        try { parsed = JSON.parse(t); } catch { parsed = t; }
-        if (!r.ok) {
-          err.textContent = typeof parsed === "string" ? parsed : JSON.stringify(parsed, null, 2);
-        }
-        return parsed;
+      function wsUrl() {
+        const proto = location.protocol === "https:" ? "wss:" : "ws:";
+        return `${proto}//${location.host}/ws`;
       }
 
-      async function getJson(path) {
-        const r = await fetch(path, { credentials: "include" });
-        const t = await r.text();
-        let parsed;
-        try { parsed = JSON.parse(t); } catch { parsed = t; }
-        if (!r.ok) {
-          err.textContent = typeof parsed === "string" ? parsed : JSON.stringify(parsed, null, 2);
+      let ws;
+      let pending = [];
+
+      function ensureWs() {
+        if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+        ws = new WebSocket(wsUrl());
+        ws.addEventListener("message", (ev) => {
+          let msg;
+          try { msg = JSON.parse(ev.data); } catch { msg = { type: "error", data: { message: String(ev.data) } }; }
+          const p = pending.shift();
+          if (p) p.resolve(msg);
+        });
+        ws.addEventListener("error", () => {
+          err.textContent = "WebSocket error. Try refreshing the page.";
+        });
+        ws.addEventListener("close", () => {
+          // allow reconnect on next request
+          ws = null;
+        });
+      }
+
+      async function sendAndReceive(message) {
+        ensureWs();
+        err.textContent = "";
+        await new Promise((resolve, reject) => {
+          const done = () => resolve();
+          const fail = () => reject(new Error("WebSocket failed to open"));
+          if (!ws) return fail();
+          if (ws.readyState === WebSocket.OPEN) return done();
+          const onOpen = () => { cleanup(); done(); };
+          const onErr = () => { cleanup(); fail(); };
+          const cleanup = () => {
+            if (!ws) return;
+            ws.removeEventListener("open", onOpen);
+            ws.removeEventListener("error", onErr);
+          };
+          ws.addEventListener("open", onOpen);
+          ws.addEventListener("error", onErr);
+        });
+
+        const resp = await new Promise((resolve, reject) => {
+          pending.push({ resolve, reject });
+          ws.send(JSON.stringify(message));
+        });
+
+        if (resp && resp.type === "error") {
+          const data = resp.data || {};
+          err.textContent = data.message ? String(data.message) : JSON.stringify(resp, null, 2);
         }
-        return parsed;
+        return resp;
       }
 
       function setAction(a) {
@@ -281,27 +311,26 @@ _UI_HTML = """<!doctype html>
       }
 
       document.getElementById("resetBtn").addEventListener("click", async () => {
-        show("Calling /reset ...");
-        const body = { task: task.value, seed: Number(seed.value || 0) };
-        const resp = await postJson("/reset", body);
+        show("Calling reset (WebSocket) ...");
+        const resp = await sendAndReceive({ type: "reset", data: { task: task.value, seed: Number(seed.value || 0) } });
         show(resp);
-        updateKpis(resp);
+        updateKpis(resp && resp.data);
       });
 
       document.getElementById("stepBtn").addEventListener("click", async () => {
-        show("Calling /step ...");
+        show("Calling step (WebSocket) ...");
         let parsed;
         try { parsed = JSON.parse(action.value); } catch (e) { err.textContent = "Invalid JSON: " + e; return; }
-        const resp = await postJson("/step", { action: parsed, timeout_s: 30 });
+        const resp = await sendAndReceive({ type: "step", data: parsed });
         show(resp);
-        updateKpis(resp);
+        updateKpis(resp && resp.data);
       });
 
       document.getElementById("stateBtn").addEventListener("click", async () => {
-        show("Calling /state ...");
-        const resp = await getJson("/state");
+        show("Calling state (WebSocket) ...");
+        const resp = await sendAndReceive({ type: "state" });
         show(resp);
-        updateKpis(resp);
+        // state payload differs from observation; still useful to show
       });
 
       document.getElementById("clearBtn").addEventListener("click", () => {
