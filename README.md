@@ -60,14 +60,6 @@ Three tasks are included (easy → medium → hard):
 
 ## Run locally (environment server)
 
-Install deps (recommended: virtual env):
-
-```bash
-python3 -m venv .venv
-. .venv/bin/activate
-python -m pip install -r requirements.txt
-```
-
 Start server:
 
 ```bash
@@ -104,49 +96,6 @@ Run:
 ```bash
 python3 inference.py
 ```
-
-## Local `.env` convenience
-
-Copy:
-
-```bash
-cp .env.example .env
-```
-
-Then edit `.env` and set `HF_TOKEN`, etc. (`.env` is gitignored).
-
-## Smoke test (sync client)
-
-```python
-from client import TabCleanEnv
-from models import TabCleanAction
-
-with TabCleanEnv(base_url="http://localhost:8000").sync() as env:
-    r = env.reset(task="easy_schemafix", seed=0)
-    r = env.step(TabCleanAction(op="noop", args={}))
-    print(r.observation.message)
-```
-
-## Local score sanity check
-
-`grade.py` is a simple helper that runs through the task list and prints deterministic scores in `[0, 1]` against a running server:
-
-```bash
-python3 grade.py
-```
-
-## Docker
-
-The validator may check for `Dockerfile` in repo root or `server/Dockerfile`. This repo includes **both**.
-
-Build and run:
-
-```bash
-docker build -t tabclean-env:local .
-docker run --rm -p 8001:8000 tabclean-env:local
-```
-
-Then point the client at `TAB_CLEAN_BASE_URL=http://localhost:8001`.
 
 ## OpenEnv validation
 
