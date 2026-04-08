@@ -432,6 +432,7 @@ class TabCleanEnvironment(Environment):
         return TabCleanObservation(
             done=done,
             reward=reward,
+            episode_id=getattr(self._state, "episode_id", "") or "",
             dataset_name=self._task.name,
             task_name=self._task.name,
             step_budget_remaining=step_budget_remaining,
