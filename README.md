@@ -1,3 +1,9 @@
+---
+title: OpenEnv TabClean
+sdk: docker
+pinned: false
+---
+
 # OpenEnv-TabClean — Tabular data cleaning & schema repair
 
 TabClean is an OpenEnv environment for evaluating an agent’s ability to **clean messy tabular data into a target schema** using a safe transformation DSL and deterministic scoring.
