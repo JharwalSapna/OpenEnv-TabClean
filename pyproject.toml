@@ -1,0 +1,26 @@
+[project]
+name = "tabclean-env"
+version = "0.1.0"
+description = "OpenEnv environment: data cleaning & schema repair with deterministic graders"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "openenv-core",
+  "fastapi",
+  "uvicorn[standard]",
+  "openai",
+  "python-dotenv",
+]
+
+[project.scripts]
+server = "server.app:main"
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "ruff",
+]
+
+[tool.ruff]
+line-length = 100
+

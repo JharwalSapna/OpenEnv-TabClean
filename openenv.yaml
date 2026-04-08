@@ -1,0 +1,4 @@
+name: tabclean_env
+version: "0.1.0"
+description: "TabClean: a real-world data cleaning & schema repair OpenEnv environment with deterministic graders."
+
