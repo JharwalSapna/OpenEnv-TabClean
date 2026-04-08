@@ -18,9 +18,9 @@ TabClean is an OpenEnv environment for evaluating an agent’s ability to **clea
 
 ## Screenshots
 
-![OpenEnv TabClean UI (controls)](docs/images/ui-old.png)
+![OpenEnv TabClean UI (live on Hugging Face Spaces)](docs/images/hf-ui-controls.png)
 
-![OpenEnv TabClean (table preview)](docs/images/readme-mermaid-fix-before.png)
+![OpenEnv TabClean (table preview)](docs/images/hf-ui-table.png)
 
 ## How it works (visual)
 
