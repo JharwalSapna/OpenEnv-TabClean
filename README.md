@@ -20,6 +20,37 @@ Typed models:
 - `TabCleanObservation` in `models.py`
 - `TabCleanState` in `models.py`
 
+## Architecture
+
+```mermaid
+flowchart TD
+  subgraph AgentSide[AgentSide]
+    Inference[inference.py]
+    Demo[demo.py]
+    Client[TabCleanEnv client.py]
+    Models[TypedModels models.py]
+    LLM[OpenAIClient API_BASE_URL/MODEL_NAME/HF_TOKEN]
+  end
+
+  subgraph EnvSide[EnvContainerOrHFSpace]
+    FastAPI[FastAPI server/app.py]
+    EnvLogic[TabCleanEnvironment server/environment.py]
+    Fixtures[DeterministicTasks fixtures]
+    Score[DeterministicScoring shapedReward+score]
+  end
+
+  Inference -->|reset/step/state| Client
+  Demo -->|reset/step| Client
+  Client -->|WebSocket /ws| FastAPI
+  Models --> Client
+  Models --> FastAPI
+  FastAPI --> EnvLogic
+  EnvLogic --> Fixtures
+  EnvLogic --> Score
+  Inference -->|chooseAction| LLM
+  LLM -->|JSONAction| Inference
+```
+
 ## Tasks
 
 Three tasks are included (easy → medium → hard):
