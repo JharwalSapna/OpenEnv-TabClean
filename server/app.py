@@ -230,6 +230,7 @@ _UI_HTML = """<!doctype html>
       async function postJson(path, body) {
         const r = await fetch(path, {
           method: "POST",
+          credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body ?? {}),
         });
@@ -243,7 +244,7 @@ _UI_HTML = """<!doctype html>
       }
 
       async function getJson(path) {
-        const r = await fetch(path);
+        const r = await fetch(path, { credentials: "include" });
         const t = await r.text();
         let parsed;
         try { parsed = JSON.parse(t); } catch { parsed = t; }
