@@ -13,8 +13,8 @@ TabClean is an OpenEnv environment for evaluating an agent’s ability to **clea
 
 ## Live demo (Hugging Face Space)
 
-- UI: `https://sapana1234-openenv-tabclean.hf.space/`
-- API docs: `https://sapana1234-openenv-tabclean.hf.space/docs`
+- UI: [sapana1234-openenv-tabclean.hf.space](https://sapana1234-openenv-tabclean.hf.space/)
+- API docs: [sapana1234-openenv-tabclean.hf.space/docs](https://sapana1234-openenv-tabclean.hf.space/docs)
 
 ## Screenshots
 
