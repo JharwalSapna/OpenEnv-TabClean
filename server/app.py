@@ -82,16 +82,16 @@ _UI_HTML = """<!doctype html>
   <body>
     <h1>OpenEnv TabClean</h1>
     <p class="muted">
-      This is a <b>real OpenEnv environment</b> for tabular cleaning. The UI below demonstrates the core loop:
-      <span class="mono"><code>/reset</code> → <code>/step</code>* → <code>/state</code></span>.
+      Interactive walkthrough for the TabClean environment.
+      Start an episode (<span class="mono"><code>reset</code></span>), apply safe transformations (<span class="mono"><code>step</code></span>), and inspect progress.
       API docs: <a href="/docs">/docs</a>.
     </p>
 
     <div class="grid">
       <div class="card">
         <div class="row tight">
-          <span class="pill">Demo controls</span>
-          <span class="pill">No secrets required</span>
+          <span class="pill">Controls</span>
+          <span class="pill">Recommended actions</span>
         </div>
 
         <div class="row">
@@ -148,8 +148,7 @@ _UI_HTML = """<!doctype html>
         </div>
 
         <div class="row tight">
-          <span class="pill">Tip</span>
-          <span class="muted">Click a recommended action, then Step. Or edit JSON directly.</span>
+          <span class="muted">Select an action, then press Step. You can also edit the JSON directly.</span>
         </div>
       </div>
 
@@ -167,8 +166,8 @@ _UI_HTML = """<!doctype html>
         </div>
 
         <div class="row tight">
-          <span class="pill">Preview rows</span>
-          <span class="pill">What changed after each step</span>
+          <span class="pill">Preview</span>
+          <span class="pill">Current table state</span>
         </div>
         <div style="overflow:auto; max-height: 38vh; border: 1px solid var(--border); border-radius: 14px;">
           <table id="previewTable">
@@ -178,8 +177,8 @@ _UI_HTML = """<!doctype html>
         </div>
 
         <div class="row tight" style="margin-top:12px;">
-          <span class="pill">Raw JSON</span>
-          <span class="pill">For debugging / auditing</span>
+          <span class="pill">Response</span>
+          <span class="pill">Raw JSON (audit)</span>
         </div>
         <pre id="out">Ready.</pre>
         <div class="err" id="err"></div>
@@ -342,9 +341,9 @@ _UI_HTML = """<!doctype html>
         btn.addEventListener("click", () => {
           const key = btn.getAttribute("data-act");
           if (key === "hard_norm_names") {
-            // If columns exist, normalize both. Otherwise still useful as a hint.
-            setAction({ op: "noop", args: {} });
-            err.textContent = "For hard task: use normalize_text on first_name and last_name (trim_upper).";
+            // Guided 2-step: normalize first_name, then last_name.
+            setAction({ op: "normalize_text", args: { column: "first_name", mode: "trim_upper" } });
+            err.textContent = "Next: normalize last_name (trim_upper).";
             return;
           }
           setAction(ACTIONS[key] || { op: "noop", args: {} });
