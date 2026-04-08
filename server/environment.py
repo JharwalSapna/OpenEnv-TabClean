@@ -382,7 +382,9 @@ class TabCleanEnvironment(Environment):
         return obs
 
     def step(self, action: TabCleanAction, timeout_s: Optional[float] = None, **kwargs):
-        assert self._task is not None, "reset() must be called first"
+        # Be tolerant to clients calling step before reset (e.g. page reloads / WS reconnects).
+        if self._task is None:
+            self.reset(seed=0, task="easy_schemafix")
         self._state.step_count += 1
 
         msg, op_cost = self._apply_action(action)
