@@ -54,9 +54,9 @@ Typed models:
 
 Three tasks are included (easy → medium → hard):
 
-- `easy_schemafix`
-- `medium_dedupe_normalize`
-- `hard_parse_normalize_filter`
+- Warm-up: Fix schema basics (`easy_schemafix`)
+- Standard: Normalize + dedupe (`medium_dedupe_normalize`)
+- Challenge: Parse + clean + filter (`hard_parse_normalize_filter`)
 
 ## Run locally (environment server)
 
