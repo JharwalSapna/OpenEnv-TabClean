@@ -129,12 +129,3 @@ Then point the client at `TAB_CLEAN_BASE_URL=http://localhost:8001`.
 openenv validate
 ```
 
-## What you need to submit (per FAQ)
-
-- A **public GitHub repo** with:
-  - environment code
-  - `requirements.txt`
-  - a demo script (this repo: `demo.py`)
-  - `README.md`
-- A deployed **Hugging Face Space URL** showcasing the working demo
-

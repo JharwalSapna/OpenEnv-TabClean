@@ -89,7 +89,8 @@ _UI_HTML = """<!doctype html>
   <body>
     <h1>OpenEnv TabClean</h1>
     <p class="muted">
-      Clean a messy table into a target schema using safe actions. This page will <b>auto-start</b> an episode for the selected task.
+      An <b>OpenEnv environment</b> for tabular data cleaning (not reinforcement learning).
+      Start with <code>reset</code>, apply a safe transform with <code>step</code>, and watch the table + score update.
     </p>
     <div class="steps" style="margin: 0 0 14px;">
       <span class="step"><b>1</b> Reset (auto)</span>
@@ -103,9 +104,9 @@ _UI_HTML = """<!doctype html>
         <div class="row">
           <label>Task</label>
           <select id="task">
-            <option value="easy_schemafix">easy_schemafix</option>
-            <option value="medium_dedupe_normalize">medium_dedupe_normalize</option>
-            <option value="hard_parse_normalize_filter">hard_parse_normalize_filter</option>
+            <option value="easy_schemafix">Warm-up: Fix schema basics</option>
+            <option value="medium_dedupe_normalize">Standard: Normalize + dedupe</option>
+            <option value="hard_parse_normalize_filter">Challenge: Parse + clean + filter</option>
           </select>
 
           <label>Seed</label>
