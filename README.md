@@ -72,7 +72,7 @@ Or (OpenEnv/uv workflow):
 uv run server
 ```
 
-## Demo script (submission requirement)
+## Demo script
 
 Run the required demo script:
 
