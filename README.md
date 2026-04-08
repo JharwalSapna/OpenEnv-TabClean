@@ -20,10 +20,10 @@ TabClean is an OpenEnv environment for evaluating an agent’s ability to **clea
 
 ```mermaid
 flowchart LR
-  U[You / Agent] -->|reset(task, seed)| E[OpenEnv TabClean Environment]
-  U -->|step(action)| E
-  E --> O[Observation<br/>table preview + constraints + score]
-  O -->|repeat until done or budget| U
+  U["You / Agent"] -->|"reset(task, seed)"| E["OpenEnv TabClean Environment"]
+  U -->|"step(action)"| E
+  E --> O["Observation\n(table preview, constraints, score)"]
+  O -->|"repeat until done or budget"| U
 ```
 
 ## Why this is useful
