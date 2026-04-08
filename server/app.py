@@ -166,8 +166,7 @@ _UI_HTML = """<!doctype html>
         </div>
 
         <div class="row tight">
-          <span class="pill">Preview</span>
-          <span class="pill">Current table state</span>
+          <span class="pill">Table preview</span>
         </div>
         <div style="overflow:auto; max-height: 38vh; border: 1px solid var(--border); border-radius: 14px;">
           <table id="previewTable">
@@ -177,8 +176,7 @@ _UI_HTML = """<!doctype html>
         </div>
 
         <div class="row tight" style="margin-top:12px;">
-          <span class="pill">Response</span>
-          <span class="pill">Raw JSON</span>
+          <span class="pill">Response (raw JSON)</span>
         </div>
         <pre id="out">Loading…</pre>
         <div class="err" id="err"></div>
@@ -302,12 +300,12 @@ _UI_HTML = """<!doctype html>
       function updateKpis(resp) {
         const obs = resp && (resp.observation || resp);
         if (!obs) return;
-        if (obs.episode_id) episodeId.textContent = "episode: " + obs.episode_id;
+        episodeId.textContent = "episode: " + (obs.episode_id ? String(obs.episode_id) : "-");
         if (typeof obs.step_budget_remaining !== "undefined") budgetInfo.textContent = "budget: " + obs.step_budget_remaining;
         if (obs.task_name) stepInfo.textContent = "task: " + obs.task_name;
         const total = obs.validation_report && obs.validation_report.score_components && obs.validation_report.score_components.total;
-        if (typeof total === "number") scoreVal.textContent = total.toFixed(3);
-        if (typeof obs.reward === "number") rewardVal.textContent = obs.reward.toFixed(3);
+        scoreVal.textContent = (typeof total === "number") ? total.toFixed(3) : "-";
+        rewardVal.textContent = (typeof obs.reward === "number") ? obs.reward.toFixed(3) : "-";
         renderPreview(obs);
       }
 

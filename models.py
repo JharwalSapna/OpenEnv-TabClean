@@ -26,6 +26,7 @@ class TabCleanAction(Action):
 
 
 class TabCleanObservation(Observation):
+    episode_id: str = ""
     dataset_name: str
     task_name: str
     step_budget_remaining: int
