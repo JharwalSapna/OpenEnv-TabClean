@@ -18,7 +18,7 @@ class Task:
 TASKS: List[Task] = [
     Task(name="easy_schemafix", seed=0, max_steps=6, task_param="easy_schemafix"),
     Task(name="medium_dedupe_normalize", seed=0, max_steps=8, task_param="medium_dedupe_normalize"),
-    Task(name="hard_parse_normalize_filter", seed=0, max_steps=10, task_param="hard_parse_normalize_filter"),
+    Task(name="hard_parse_normalize_filter", seed=0, max_steps=9, task_param="hard_parse_normalize_filter"),
 ]
 
 

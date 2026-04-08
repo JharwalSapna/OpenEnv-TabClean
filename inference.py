@@ -51,6 +51,7 @@ SYSTEM_PROMPT = textwrap.dedent(
     - fill_missing: {"column": "<name>", "strategy": "constant|mode", "value": <any>}
     - normalize_text: {"column": "<name>", "mode": "trim_lower|trim_upper|country_iso2"}
     - split_column: {"column": "<name>", "sep": "<sep>", "into": ["col1","col2",...]}
+      - optional: {"take": "first_last"} to map into[0]=first token, into[1]=last token
     - merge_columns: {"into": "<name>", "columns": ["c1","c2"], "sep": "<sep>"}
     - dedupe: {"keys": ["k1","k2"]}
     - filter_rows: {"column": "<name>", "op": "eq|neq|in|not_in", "value": <any>}
@@ -103,40 +104,92 @@ def _safe_default_action(obs: Dict[str, Any]) -> TabCleanAction:
     task_name = obs.get("task_name", "")
     columns = obs.get("columns", []) or []
     schema = obs.get("target_schema", {}) or {}
+    audit = obs.get("audit_trail", []) or []
+
+    def already_did(op: str, required_args: Dict[str, Any]) -> bool:
+        for a in audit:
+            if a.get("op") != op:
+                continue
+            args = a.get("args", {}) or {}
+            ok = True
+            for k, v in required_args.items():
+                if args.get(k) != v:
+                    ok = False
+                    break
+            if ok:
+                return True
+        return False
 
     # A few simple heuristics for the bundled fixtures.
     if task_name == "easy_schemafix":
         if "userId" in columns and "user_id" not in columns:
-            return TabCleanAction(op="rename_column", args={"from": "userId", "to": "user_id"})
+            if not already_did("rename_column", {"from": "userId", "to": "user_id"}):
+                return TabCleanAction(op="rename_column", args={"from": "userId", "to": "user_id"})
         if schema.get("user_id") == "int":
-            return TabCleanAction(op="cast", args={"column": "user_id", "type": "int"})
+            if not already_did("cast", {"column": "user_id", "type": "int"}):
+                return TabCleanAction(op="cast", args={"column": "user_id", "type": "int"})
         if schema.get("age") == "int":
-            return TabCleanAction(op="cast", args={"column": "age", "type": "int"})
-        return TabCleanAction(op="normalize_text", args={"column": "country", "mode": "country_iso2"})
+            if not already_did("cast", {"column": "age", "type": "int"}):
+                return TabCleanAction(op="cast", args={"column": "age", "type": "int"})
+        # Fill missing ages with 0 (the fixture expects that).
+        if not already_did("fill_missing", {"column": "age", "strategy": "constant", "value": 0}):
+            return TabCleanAction(op="fill_missing", args={"column": "age", "strategy": "constant", "value": 0})
+        if not already_did("normalize_text", {"column": "country", "mode": "country_iso2"}):
+            return TabCleanAction(op="normalize_text", args={"column": "country", "mode": "country_iso2"})
+        return TabCleanAction(op="noop", args={})
 
     if task_name == "medium_dedupe_normalize":
-        if "email" in columns:
+        if "email" in columns and not already_did("normalize_text", {"column": "email", "mode": "trim_lower"}):
             return TabCleanAction(op="normalize_text", args={"column": "email", "mode": "trim_lower"})
-        if "city" in columns:
+        if "city" in columns and not already_did("normalize_text", {"column": "city", "mode": "trim_upper"}):
             return TabCleanAction(op="normalize_text", args={"column": "city", "mode": "trim_upper"})
-        if "subscribed" in columns:
+        if "subscribed" in columns and not already_did("cast", {"column": "subscribed", "type": "bool"}):
             return TabCleanAction(op="cast", args={"column": "subscribed", "type": "bool"})
-        return TabCleanAction(op="dedupe", args={"keys": ["email"]})
+        # Empty subscribed should become False per fixture.
+        if "subscribed" in columns and not already_did("fill_missing", {"column": "subscribed", "strategy": "constant", "value": False}):
+            return TabCleanAction(
+                op="fill_missing",
+                args={"column": "subscribed", "strategy": "constant", "value": False},
+            )
+        if not already_did("dedupe", {"keys": ["email"]}):
+            return TabCleanAction(op="dedupe", args={"keys": ["email"]})
+        return TabCleanAction(op="noop", args={})
 
     if task_name == "hard_parse_normalize_filter":
-        if "full_name" in columns and ("first_name" not in columns or "last_name" not in columns):
-            return TabCleanAction(op="split_column", args={"column": "full_name", "sep": " ", "into": ["first_name", "last_name"]})
-        if "first_name" in columns:
-            return TabCleanAction(op="normalize_text", args={"column": "first_name", "mode": "trim_upper"})
-        if "last_name" in columns:
-            return TabCleanAction(op="normalize_text", args={"column": "last_name", "mode": "trim_upper"})
+        # 1) Types / schema columns
+        if "row_id" in columns and not already_did("cast", {"column": "row_id", "type": "int"}):
+            return TabCleanAction(op="cast", args={"column": "row_id", "type": "int"})
         if "signup" in columns and "signup_date" not in columns:
-            return TabCleanAction(op="rename_column", args={"from": "signup", "to": "signup_date"})
-        if "signup_date" in columns:
+            if not already_did("rename_column", {"from": "signup", "to": "signup_date"}):
+                return TabCleanAction(op="rename_column", args={"from": "signup", "to": "signup_date"})
+        if "signup_date" in columns and not already_did("cast", {"column": "signup_date", "type": "date_ymd"}):
             return TabCleanAction(op="cast", args={"column": "signup_date", "type": "date_ymd"})
-        if "country" in columns:
+
+        # 2) Names (first/last from potentially multi-token full_name)
+        if "full_name" in columns and ("first_name" not in columns or "last_name" not in columns):
+            if not already_did(
+                "split_column",
+                {"column": "full_name", "sep": " ", "into": ["first_name", "last_name"]},
+            ):
+                return TabCleanAction(
+                    op="split_column",
+                    args={"column": "full_name", "sep": " ", "into": ["first_name", "last_name"], "take": "first_last"},
+                )
+        if "first_name" in columns and not already_did("normalize_text", {"column": "first_name", "mode": "trim_upper"}):
+            return TabCleanAction(op="normalize_text", args={"column": "first_name", "mode": "trim_upper"})
+        if "last_name" in columns and not already_did("normalize_text", {"column": "last_name", "mode": "trim_upper"}):
+            return TabCleanAction(op="normalize_text", args={"column": "last_name", "mode": "trim_upper"})
+
+        # 3) Country normalization + filtering out invalid rows
+        if "country" in columns and not already_did("normalize_text", {"column": "country", "mode": "country_iso2"}):
             return TabCleanAction(op="normalize_text", args={"column": "country", "mode": "country_iso2"})
-        return TabCleanAction(op="filter_rows", args={"column": "country", "op": "in", "value": ["IN", "US"]})
+        # Remove rows with invalid parsed dates (e.g., "not a date") after casting.
+        if not already_did("filter_rows", {"column": "signup_date", "op": "not_null", "value": None}):
+            return TabCleanAction(op="filter_rows", args={"column": "signup_date", "op": "not_null"})
+        # Remove rows with invalid country values after normalization.
+        if not already_did("filter_rows", {"column": "country", "op": "in", "value": ["IN", "US"]}):
+            return TabCleanAction(op="filter_rows", args={"column": "country", "op": "in", "value": ["IN", "US"]})
+        return TabCleanAction(op="noop", args={})
 
     return TabCleanAction(op="noop", args={})
 

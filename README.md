@@ -26,6 +26,32 @@ python3 demo.py
 
 Data cleaning and schema repair is a common real-world bottleneck in analytics/ETL. TabClean provides deterministic tasks + graders for agent evaluation.
 
+## What makes it “hackathon-grade”
+
+- **Realistic failure modes**: inconsistent casing/whitespace, multi-token names, multiple date formats, invalid rows.
+- **Deterministic graders**: fixed fixtures + pure scoring in \([0, 1]\) with a score breakdown in the observation.
+- **Dense reward**: per-step reward is **score delta minus a small action cost**, so agents are incentivized to make progress without spamming no-ops or destructive operations.
+- **Exploit resistance**: dropping columns/rows is allowed (because it happens in practice) but comes with a higher action cost and still must satisfy schema + constraints + target value match.
+
+## Grader feedback contract (what the agent learns from)
+
+Every `step()` returns a typed `TabCleanObservation` with a `validation_report` that is designed to be **deterministic** and **actionable** (not just a scalar reward).
+
+The key fields are:
+
+- `validation_report.score_components`
+  - `total`: overall score in `[0, 1]`
+  - `schema_score`, `constraint_score`, `value_score`, `coverage_score`
+- `validation_report.report`
+  - `constraint_results`: list of `{kind, column, ok, params, examples}` (examples are capped)
+  - `missing_columns`: which required schema columns are still missing
+  - `missing_target_ids` / `extra_ids`: which row ids are missing/extra vs the target
+  - `cast_failures`: count of cast failures during scoring
+  - `mismatches`: capped list of `{id, column, expected, got}` for quick debugging
+  - `per_column_accuracy`: per-column accuracy in `[0, 1]`
+
+This gives models a clean gradient-like signal: **which constraint failed, where, and what to fix next**.
+
 ## API
 
 This environment implements the standard OpenEnv interface:
@@ -78,6 +104,8 @@ Three tasks are included (easy → medium → hard):
 - `easy_schemafix`
 - `medium_dedupe_normalize`
 - `hard_parse_normalize_filter`
+
+The hard task is intentionally tight on step budget and includes **multi-token names**; `split_column` supports an optional `"take": "first_last"` mode to model “extract first/last name” logic without requiring arbitrary code execution.
 
 ## Run locally
 
