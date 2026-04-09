@@ -32,7 +32,6 @@ BENCHMARK = os.getenv("TAB_CLEAN_BENCHMARK", "tabclean_env")
 MAX_STEPS_DEFAULT = int(os.getenv("MAX_STEPS", "10"))
 TEMPERATURE = float(os.getenv("TEMPERATURE", "0.2"))
 MAX_TOKENS = int(os.getenv("MAX_TOKENS", "250"))
-PROXY_PROBE_TIMEOUT_S = float(os.getenv("PROXY_PROBE_TIMEOUT_S", "10"))
 
 # Consider the run a "success" above this score.
 SUCCESS_SCORE_THRESHOLD = float(os.getenv("SUCCESS_SCORE_THRESHOLD", "0.95"))
@@ -78,27 +77,6 @@ def _sanitize_error(err: str) -> str:
     if len(s) > 180:
         s = s[:180].rstrip() + "..."
     return s
-
-
-def _probe_proxy_llm(client: OpenAI) -> Optional[str]:
-    """
-    Make a tiny request so validators observe at least one LLM API call
-    through the injected proxy (API_BASE_URL + API_KEY).
-    """
-    try:
-        client.chat.completions.create(
-            model=MODEL_NAME,
-            temperature=0.0,
-            max_tokens=1,
-            messages=[
-                {"role": "system", "content": "Return JSON only."},
-                {"role": "user", "content": "{}"},
-            ],
-            timeout=PROXY_PROBE_TIMEOUT_S,
-        )
-        return None
-    except Exception as exc:
-        return _sanitize_error(str(exc))
 
 
 def log_start(task: str, env: str, model: str) -> None:
@@ -293,19 +271,6 @@ async def run_task(task_name: str) -> None:
     try:
         async with env:
             result = await env.reset(seed=0, task=task_name)
-
-            # Force at least one proxied LLM call early when a proxy key is available.
-            # Even if the policy later falls back, this ensures the run is counted.
-            if API_KEY.strip():
-                probe_err = _probe_proxy_llm(client)
-                if probe_err:
-                    log_step(
-                        step=0,
-                        action="llm_probe",
-                        reward=0.0,
-                        done=False,
-                        error=probe_err,
-                    )
 
             for step in range(1, MAX_STEPS_DEFAULT + 1):
                 if result.done:
