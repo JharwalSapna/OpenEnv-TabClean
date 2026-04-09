@@ -20,9 +20,10 @@ except Exception:
     pass
 
 
-API_BASE_URL = os.getenv("API_BASE_URL") or ""
-MODEL_NAME = os.getenv("MODEL_NAME") or ""
+API_BASE_URL = os.getenv("API_BASE_URL") or "https://router.huggingface.co/v1"
+MODEL_NAME = os.getenv("MODEL_NAME") or "Qwen/Qwen2.5-72B-Instruct"
 # Validator environments may inject either API_KEY or HF_TOKEN.
+# Prefer API_KEY when present so proxy logging attributes correctly.
 API_KEY = os.getenv("API_KEY") or os.getenv("HF_TOKEN") or ""
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME") or os.getenv("LOCAL_IMAGE") or ""
 
@@ -129,25 +130,32 @@ def _build_user_prompt(obs: Dict[str, Any]) -> str:
     ).strip()
 
 
-def _llm_next_action(client: OpenAI, obs: Dict[str, Any]) -> TabCleanAction:
-    completion = client.chat.completions.create(
-        model=MODEL_NAME,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": _build_user_prompt(obs)},
-        ],
-        temperature=TEMPERATURE,
-        max_tokens=MAX_TOKENS,
-        stream=False,
-    )
-    text = (completion.choices[0].message.content or "").strip()
-    # Minimal JSON parsing without extra deps
-    import json  # noqa: PLC0415
+def _llm_next_action(client: OpenAI, obs: Dict[str, Any]) -> Tuple[TabCleanAction, Optional[str]]:
+    """
+    Always attempts an LLM call when credentials are present.
+    Never raises: on failure, returns a safe noop and an error string.
+    """
+    try:
+        completion = client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": _build_user_prompt(obs)},
+            ],
+            temperature=TEMPERATURE,
+            max_tokens=MAX_TOKENS,
+            stream=False,
+        )
+        text = (completion.choices[0].message.content or "").strip()
+        # Minimal JSON parsing without extra deps
+        import json  # noqa: PLC0415
 
-    obj = json.loads(text)
-    op = obj.get("op", "noop")
-    args = obj.get("args", {}) or {}
-    return TabCleanAction(op=op, args=args)
+        obj = json.loads(text)
+        op = obj.get("op", "noop")
+        args = obj.get("args", {}) or {}
+        return TabCleanAction(op=op, args=args), None
+    except Exception as exc:
+        return TabCleanAction(op="noop", args={}), _sanitize_error(str(exc))
 
 
 async def _make_env() -> Any:
@@ -161,14 +169,6 @@ async def _make_env() -> Any:
 
 
 async def run_task(task_name: str) -> None:
-    # Enforce injected proxy config. No fallbacks in validation runs.
-    if not API_BASE_URL.strip():
-        raise RuntimeError("Missing API_BASE_URL")
-    if not MODEL_NAME.strip():
-        raise RuntimeError("Missing MODEL_NAME")
-    if not API_KEY.strip():
-        raise RuntimeError("Missing API_KEY/HF_TOKEN")
-
     client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
     env = await _make_env()
 
@@ -188,8 +188,11 @@ async def run_task(task_name: str) -> None:
                     break
                 obs = result.observation.model_dump()
 
-                action = _llm_next_action(client, obs)
-                err: Optional[str] = None
+                if not API_KEY.strip():
+                    # No key: cannot call LLM proxy. Take a safe noop and surface the error.
+                    action, err = TabCleanAction(op="noop", args={}), "missing_api_key"
+                else:
+                    action, err = _llm_next_action(client, obs)
 
                 result = await env.step(action)
                 steps_taken = step
