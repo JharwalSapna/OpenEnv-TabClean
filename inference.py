@@ -23,9 +23,9 @@ except Exception:
 # Use only the injected proxy endpoint (no fallback to other providers).
 API_BASE_URL = os.getenv("API_BASE_URL") or ""
 MODEL_NAME = os.getenv("MODEL_NAME") or "Qwen/Qwen2.5-72B-Instruct"
-# Platform injects the proxy key as HF_TOKEN. We allow API_KEY only as a fallback
-# (no hardcoded secrets, and no default value).
-API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY") or ""
+# Validator injects the proxy key as API_KEY.
+# Keep HF_TOKEN as a fallback for compatibility (no hardcoded secrets, no defaults).
+API_KEY = os.getenv("API_KEY") or os.getenv("HF_TOKEN") or ""
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME") or os.getenv("LOCAL_IMAGE") or ""
 
 TASK_NAME = os.getenv("TAB_CLEAN_TASK", "")

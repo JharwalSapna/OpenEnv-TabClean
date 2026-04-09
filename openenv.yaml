@@ -2,3 +2,13 @@ name: tabclean_env
 version: "0.1.0"
 description: "TabClean: a real-world data cleaning & schema repair OpenEnv environment with deterministic graders."
 
+# Used by the platform to locate the environment.
+env_id: "tabclean_env-v0"
+
+# Mandatory: declare what the platform should inject into the container.
+env_vars:
+  - API_BASE_URL
+  - MODEL_NAME
+  - API_KEY
+  - HF_TOKEN
+
