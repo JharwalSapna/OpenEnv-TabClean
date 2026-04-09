@@ -20,11 +20,11 @@ except Exception:
     pass
 
 
-API_BASE_URL = os.getenv("API_BASE_URL") or "https://router.huggingface.co/v1"
+# Use only the injected proxy endpoint (no fallback to other providers).
+API_BASE_URL = os.getenv("API_BASE_URL") or ""
 MODEL_NAME = os.getenv("MODEL_NAME") or "Qwen/Qwen2.5-72B-Instruct"
-# Validator environments may inject either API_KEY or HF_TOKEN.
-# Prefer API_KEY when present so proxy logging attributes correctly.
-API_KEY = os.getenv("API_KEY") or os.getenv("HF_TOKEN") or ""
+# Use only the injected proxy key (no fallback to other credentials).
+API_KEY = os.getenv("API_KEY") or ""
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME") or os.getenv("LOCAL_IMAGE") or ""
 
 TASK_NAME = os.getenv("TAB_CLEAN_TASK", "")
@@ -169,6 +169,12 @@ async def _make_env() -> Any:
 
 
 async def run_task(task_name: str) -> None:
+    # Must be present in validator environment; if missing, exit cleanly.
+    if not API_BASE_URL.strip() or not API_KEY.strip():
+        log_start(task=task_name, env=BENCHMARK, model=MODEL_NAME)
+        log_end(success=False, steps=0, score=0.0, rewards=[])
+        return
+
     client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
     env = await _make_env()
 
@@ -188,11 +194,18 @@ async def run_task(task_name: str) -> None:
                     break
                 obs = result.observation.model_dump()
 
-                if not API_KEY.strip():
-                    # No key: cannot call LLM proxy. Take a safe noop and surface the error.
-                    action, err = TabCleanAction(op="noop", args={}), "missing_api_key"
-                else:
-                    action, err = _llm_next_action(client, obs)
+                action, err = _llm_next_action(client, obs)
+                if err:
+                    # If the proxy call fails, stop early (otherwise we'd keep running with no proxy traffic).
+                    result = await env.step(TabCleanAction(op="noop", args={}))
+                    steps_taken = step
+                    r = float(result.reward or 0.0)
+                    rewards.append(r)
+                    score = float(
+                        result.observation.validation_report.get("score_components", {}).get("total", score)
+                    )
+                    log_step(step=step, action=str({"op": "noop", "args": {}}), reward=r, done=True, error=err)
+                    break
 
                 result = await env.step(action)
                 steps_taken = step
