@@ -34,8 +34,8 @@ def grade_task(base_url: str, task: Task, policy: Callable[[dict], TabCleanActio
             sc = float(result.observation.validation_report.get("score_components", {}).get("total", 0.0))
             if sc > best:
                 best = sc
-        # Clamp to the expected range.
-        return max(0.0, min(1.0, best))
+        _EPS = 1e-4
+        return max(_EPS, min(1.0 - _EPS, best))
 
 
 def list_tasks() -> List[str]:

@@ -321,9 +321,10 @@ def _score_against_target(
     constraint_score = constraint_pass / max(len(constraints), 1)
 
     schema_score = present
+    _EPS = 1e-4
     total = max(
-        0.0,
-        min(1.0, 0.20 * schema_score + 0.25 * constraint_score + 0.45 * value_score + 0.10 * coverage_score),
+        _EPS,
+        min(1.0 - _EPS, 0.20 * schema_score + 0.25 * constraint_score + 0.45 * value_score + 0.10 * coverage_score),
     )
     debug = {
         "total": total,
