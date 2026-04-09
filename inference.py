@@ -22,7 +22,8 @@ except Exception:
 
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
-API_KEY = os.getenv("HF_TOKEN") or os.getenv("API_KEY") or ""
+# Prefer the injected proxy key (API_KEY). HF_TOKEN is only a local fallback.
+API_KEY = os.getenv("API_KEY") or os.getenv("HF_TOKEN") or ""
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME") or os.getenv("LOCAL_IMAGE") or ""
 
 TASK_NAME = os.getenv("TAB_CLEAN_TASK", "")
