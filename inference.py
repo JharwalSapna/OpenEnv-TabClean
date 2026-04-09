@@ -20,12 +20,11 @@ except Exception:
     pass
 
 
-# Use only the injected proxy endpoint (no fallback to other providers).
-API_BASE_URL = os.getenv("API_BASE_URL") or ""
+# Platform injects proxy credentials; default to HF router if missing.
+API_BASE_URL = (os.getenv("API_BASE_URL") or "https://router.huggingface.co/v1")
 MODEL_NAME = os.getenv("MODEL_NAME") or "Qwen/Qwen2.5-72B-Instruct"
-# Validator injects the proxy key as API_KEY.
-# Keep HF_TOKEN as a fallback for compatibility (no hardcoded secrets, no defaults).
-API_KEY = os.getenv("API_KEY") or os.getenv("HF_TOKEN") or ""
+# Platform docs say HF_TOKEN is the injected key; fall back to API_KEY.
+API_KEY = (os.getenv("HF_TOKEN") or "").strip() or (os.getenv("API_KEY") or "").strip()
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME") or os.getenv("LOCAL_IMAGE") or ""
 
 TASK_NAME = os.getenv("TAB_CLEAN_TASK", "")
@@ -165,18 +164,21 @@ async def _make_env() -> Any:
         from_docker = getattr(TabCleanEnv, "from_docker_image", None)
         if callable(from_docker):
             return await from_docker(LOCAL_IMAGE_NAME)
-    base_url = os.getenv("TAB_CLEAN_BASE_URL", "http://localhost:8000")
+    base_url = os.getenv("TAB_CLEAN_BASE_URL", f"http://localhost:{os.getenv('PORT', '8000')}")
     return TabCleanEnv(base_url=base_url)
 
 
 async def run_task(task_name: str) -> None:
-    # Must be present in validator environment; if missing, exit cleanly.
-    if not API_BASE_URL.strip() or not API_KEY.strip():
+    if not API_KEY:
         log_start(task=task_name, env=BENCHMARK, model=MODEL_NAME)
+        print(f"CRITICAL: Missing credentials! API_BASE_URL={bool(API_BASE_URL)} API_KEY={bool(API_KEY)}", flush=True)
         log_end(success=False, steps=0, score=0.0, rewards=[])
         return
 
-    client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+    client = OpenAI(
+        base_url=API_BASE_URL.strip().rstrip("/"),
+        api_key=API_KEY.strip(),
+    )
     env = await _make_env()
 
     rewards: List[float] = []
@@ -224,6 +226,7 @@ async def run_task(task_name: str) -> None:
 
         success = score >= SUCCESS_SCORE_THRESHOLD
     except Exception as exc:
+        print(f"ERROR in run_task({task_name}): {str(exc)[:200]}", flush=True)
         success = False
     finally:
         log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
