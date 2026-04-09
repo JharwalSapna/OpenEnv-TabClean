@@ -20,9 +20,9 @@ except Exception:
     pass
 
 
-API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
-MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-72B-Instruct")
-# Prefer the injected proxy key (API_KEY). HF_TOKEN is only a local fallback.
+API_BASE_URL = os.getenv("API_BASE_URL") or ""
+MODEL_NAME = os.getenv("MODEL_NAME") or ""
+# Validator environments may inject either API_KEY or HF_TOKEN.
 API_KEY = os.getenv("API_KEY") or os.getenv("HF_TOKEN") or ""
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME") or os.getenv("LOCAL_IMAGE") or ""
 
@@ -100,101 +100,6 @@ def log_end(success: bool, steps: int, score: float, rewards: List[float]) -> No
     )
 
 
-def _safe_default_action(obs: Dict[str, Any]) -> TabCleanAction:
-    # Deterministic fallback (used when LLM is unavailable or misbehaves).
-    task_name = obs.get("task_name", "")
-    columns = obs.get("columns", []) or []
-    schema = obs.get("target_schema", {}) or {}
-    audit = obs.get("audit_trail", []) or []
-
-    def already_did(op: str, required_args: Dict[str, Any]) -> bool:
-        for a in audit:
-            if a.get("op") != op:
-                continue
-            args = a.get("args", {}) or {}
-            ok = True
-            for k, v in required_args.items():
-                if args.get(k) != v:
-                    ok = False
-                    break
-            if ok:
-                return True
-        return False
-
-    # A few simple heuristics for the bundled fixtures.
-    if task_name == "easy_schemafix":
-        if "userId" in columns and "user_id" not in columns:
-            if not already_did("rename_column", {"from": "userId", "to": "user_id"}):
-                return TabCleanAction(op="rename_column", args={"from": "userId", "to": "user_id"})
-        if schema.get("user_id") == "int":
-            if not already_did("cast", {"column": "user_id", "type": "int"}):
-                return TabCleanAction(op="cast", args={"column": "user_id", "type": "int"})
-        if schema.get("age") == "int":
-            if not already_did("cast", {"column": "age", "type": "int"}):
-                return TabCleanAction(op="cast", args={"column": "age", "type": "int"})
-        # Fill missing ages with 0 (the fixture expects that).
-        if not already_did("fill_missing", {"column": "age", "strategy": "constant", "value": 0}):
-            return TabCleanAction(op="fill_missing", args={"column": "age", "strategy": "constant", "value": 0})
-        if not already_did("normalize_text", {"column": "country", "mode": "country_iso2"}):
-            return TabCleanAction(op="normalize_text", args={"column": "country", "mode": "country_iso2"})
-        return TabCleanAction(op="noop", args={})
-
-    if task_name == "medium_dedupe_normalize":
-        if "email" in columns and not already_did("normalize_text", {"column": "email", "mode": "trim_lower"}):
-            return TabCleanAction(op="normalize_text", args={"column": "email", "mode": "trim_lower"})
-        if "city" in columns and not already_did("normalize_text", {"column": "city", "mode": "trim_upper"}):
-            return TabCleanAction(op="normalize_text", args={"column": "city", "mode": "trim_upper"})
-        if "subscribed" in columns and not already_did("cast", {"column": "subscribed", "type": "bool"}):
-            return TabCleanAction(op="cast", args={"column": "subscribed", "type": "bool"})
-        # Empty subscribed should become False per fixture.
-        if "subscribed" in columns and not already_did("fill_missing", {"column": "subscribed", "strategy": "constant", "value": False}):
-            return TabCleanAction(
-                op="fill_missing",
-                args={"column": "subscribed", "strategy": "constant", "value": False},
-            )
-        if not already_did("dedupe", {"keys": ["email"]}):
-            return TabCleanAction(op="dedupe", args={"keys": ["email"]})
-        return TabCleanAction(op="noop", args={})
-
-    if task_name == "hard_parse_normalize_filter":
-        # 1) Types / schema columns
-        if "row_id" in columns and not already_did("cast", {"column": "row_id", "type": "int"}):
-            return TabCleanAction(op="cast", args={"column": "row_id", "type": "int"})
-        if "signup" in columns and "signup_date" not in columns:
-            if not already_did("rename_column", {"from": "signup", "to": "signup_date"}):
-                return TabCleanAction(op="rename_column", args={"from": "signup", "to": "signup_date"})
-        if "signup_date" in columns and not already_did("cast", {"column": "signup_date", "type": "date_ymd"}):
-            return TabCleanAction(op="cast", args={"column": "signup_date", "type": "date_ymd"})
-
-        # 2) Names (first/last from potentially multi-token full_name)
-        if "full_name" in columns and ("first_name" not in columns or "last_name" not in columns):
-            if not already_did(
-                "split_column",
-                {"column": "full_name", "sep": " ", "into": ["first_name", "last_name"]},
-            ):
-                return TabCleanAction(
-                    op="split_column",
-                    args={"column": "full_name", "sep": " ", "into": ["first_name", "last_name"], "take": "first_last"},
-                )
-        if "first_name" in columns and not already_did("normalize_text", {"column": "first_name", "mode": "trim_upper"}):
-            return TabCleanAction(op="normalize_text", args={"column": "first_name", "mode": "trim_upper"})
-        if "last_name" in columns and not already_did("normalize_text", {"column": "last_name", "mode": "trim_upper"}):
-            return TabCleanAction(op="normalize_text", args={"column": "last_name", "mode": "trim_upper"})
-
-        # 3) Country normalization + filtering out invalid rows
-        if "country" in columns and not already_did("normalize_text", {"column": "country", "mode": "country_iso2"}):
-            return TabCleanAction(op="normalize_text", args={"column": "country", "mode": "country_iso2"})
-        # Remove rows with invalid parsed dates (e.g., "not a date") after casting.
-        if not already_did("filter_rows", {"column": "signup_date", "op": "not_null", "value": None}):
-            return TabCleanAction(op="filter_rows", args={"column": "signup_date", "op": "not_null"})
-        # Remove rows with invalid country values after normalization.
-        if not already_did("filter_rows", {"column": "country", "op": "in", "value": ["IN", "US"]}):
-            return TabCleanAction(op="filter_rows", args={"column": "country", "op": "in", "value": ["IN", "US"]})
-        return TabCleanAction(op="noop", args={})
-
-    return TabCleanAction(op="noop", args={})
-
-
 def _build_user_prompt(obs: Dict[str, Any]) -> str:
     cols = obs.get("columns", [])
     preview = obs.get("preview_rows", [])
@@ -224,27 +129,25 @@ def _build_user_prompt(obs: Dict[str, Any]) -> str:
     ).strip()
 
 
-def _llm_next_action(client: OpenAI, obs: Dict[str, Any]) -> Tuple[Optional[TabCleanAction], Optional[str]]:
-    try:
-        completion = client.chat.completions.create(
-            model=MODEL_NAME,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": _build_user_prompt(obs)},
-            ],
-            temperature=TEMPERATURE,
-            max_tokens=MAX_TOKENS,
-        )
-        text = (completion.choices[0].message.content or "").strip()
-        # Minimal JSON parsing without extra deps
-        import json  # noqa: PLC0415
+def _llm_next_action(client: OpenAI, obs: Dict[str, Any]) -> TabCleanAction:
+    completion = client.chat.completions.create(
+        model=MODEL_NAME,
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": _build_user_prompt(obs)},
+        ],
+        temperature=TEMPERATURE,
+        max_tokens=MAX_TOKENS,
+        stream=False,
+    )
+    text = (completion.choices[0].message.content or "").strip()
+    # Minimal JSON parsing without extra deps
+    import json  # noqa: PLC0415
 
-        obj = json.loads(text)
-        op = obj.get("op", "noop")
-        args = obj.get("args", {}) or {}
-        return TabCleanAction(op=op, args=args), None
-    except Exception as exc:
-        return None, _sanitize_error(str(exc))
+    obj = json.loads(text)
+    op = obj.get("op", "noop")
+    args = obj.get("args", {}) or {}
+    return TabCleanAction(op=op, args=args)
 
 
 async def _make_env() -> Any:
@@ -258,6 +161,14 @@ async def _make_env() -> Any:
 
 
 async def run_task(task_name: str) -> None:
+    # Enforce injected proxy config. No fallbacks in validation runs.
+    if not API_BASE_URL.strip():
+        raise RuntimeError("Missing API_BASE_URL")
+    if not MODEL_NAME.strip():
+        raise RuntimeError("Missing MODEL_NAME")
+    if not API_KEY.strip():
+        raise RuntimeError("Missing API_KEY/HF_TOKEN")
+
     client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
     env = await _make_env()
 
@@ -277,13 +188,8 @@ async def run_task(task_name: str) -> None:
                     break
                 obs = result.observation.model_dump()
 
-                # If no key is set, don't even try the router.
-                if not API_KEY.strip():
-                    action, err = _safe_default_action(obs), None
-                else:
-                    action, err = _llm_next_action(client, obs)
-                    if action is None:
-                        action, err = _safe_default_action(obs), None
+                action = _llm_next_action(client, obs)
+                err: Optional[str] = None
 
                 result = await env.step(action)
                 steps_taken = step
@@ -301,14 +207,6 @@ async def run_task(task_name: str) -> None:
 
         success = score >= SUCCESS_SCORE_THRESHOLD
     except Exception as exc:
-        # Still must emit END
-        log_step(
-            step=max(1, steps_taken),
-            action="exception",
-            reward=0.0,
-            done=True,
-            error=_sanitize_error(str(exc)),
-        )
         success = False
     finally:
         log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
